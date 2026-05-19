@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium POS - Billing</title>
+    <link rel="stylesheet" href="billing.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i data-lucide="utensils-crosses"></i>
+                <span>POS PRO</span>
+            </div>
+            <div class="category-header" id="categoryToggle">
+                <i data-lucide="menu"></i>
+                <span>Categories</span>
+                <i data-lucide="chevron-down" class="chevron-icon"></i>
+            </div>
+            <nav class="categories collapsed" id="categoriesNav">
+                <button class="category-btn active" data-category="all">
+                    <i data-lucide="layout-grid"></i>
+                    <span>All Items</span>
+                </button>
+
+                <span class="category-section-label">🍗 Non-Veg</span>
+                <button class="category-btn" data-category="tenders">
+                    <i data-lucide="grip"></i>
+                    <span>Crispy Tenders</span>
+                </button>
+                <button class="category-btn" data-category="wings">
+                    <i data-lucide="bird"></i>
+                    <span>Wings 🔥</span>
+                </button>
+                <button class="category-btn" data-category="buckets">
+                    <i data-lucide="bucket"></i>
+                    <span>Chicken Bucket</span>
+                </button>
+                <button class="category-btn" data-category="wraps-nonveg">
+                    <i data-lucide="wrap-text"></i>
+                    <span>NV Wraps</span>
+                </button>
+                <button class="category-btn" data-category="tacos-nonveg">
+                    <i data-lucide="pizza"></i>
+                    <span>NV Tacos</span>
+                </button>
+                <button class="category-btn" data-category="burgers-nonveg">
+                    <i data-lucide="hamburger"></i>
+                    <span>NV Burgers</span>
+                </button>
+                <button class="category-btn" data-category="fries-nonveg">
+                    <i data-lucide="star"></i>
+                    <span>NV Fries</span>
+                </button>
+
+                <span class="category-section-label">🥬 Veg</span>
+                <button class="category-btn" data-category="burgers-veg">
+                    <i data-lucide="leaf"></i>
+                    <span>Veg Burger</span>
+                </button>
+                <button class="category-btn" data-category="wraps-veg">
+                    <i data-lucide="salad"></i>
+                    <span>Veg Wraps</span>
+                </button>
+                <button class="category-btn" data-category="tacos-veg">
+                    <i data-lucide="leaf"></i>
+                    <span>Veg Tacos</span>
+                </button>
+                <button class="category-btn" data-category="fries-veg">
+                    <i data-lucide="star"></i>
+                    <span>Veg Fries</span>
+                </button>
+
+                <span class="category-section-label">🍹 Drinks</span>
+                <button class="category-btn" data-category="mocktails">
+                    <i data-lucide="cup-soda"></i>
+                    <span>Mocktails</span>
+                </button>
+                <button class="category-btn" data-category="milkshakes">
+                    <i data-lucide="milk"></i>
+                    <span>Milkshakes</span>
+                </button>
+                <button class="category-btn" data-category="desserts">
+                    <i data-lucide="cake"></i>
+                    <span>Desserts</span>
+                </button>
+
+                <span class="category-section-label">🎉 More</span>
+                <button class="category-btn" data-category="sauces">
+                    <i data-lucide="package"></i>
+                    <span>Sauces</span>
+                </button>
+                <button class="category-btn" data-category="combos">
+                    <i data-lucide="package"></i>
+                    <span>Combo Deals</span>
+                </button>
+                <button class="category-btn" data-category="extras">
+                    <i data-lucide="plus-circle"></i>
+                    <span>Extras</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="icon-btn" id="settingsBtn">
+                    <i data-lucide="settings"></i>
+                    <span>Settings</span>
+                </button>
+                <button class="icon-btn" id="exitBtn" title="Back to Dashboard">
+                    <i data-lucide="log-out"></i>
+                    <span>Dashboard</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="search-container">
+                    <i data-lucide="search"></i>
+                    <input type="text" placeholder="Search menu items..." id="menuSearch">
+                </div>
+                <div class="user-info">
+                    <span class="date-time" id="dateTime">Oct 24, 2023 | 14:20</span>
+                    <div class="user-profile">
+                        <span class="user-name" id="sessionUserName">—</span>
+                        <div
+                            style="display:flex; gap:12px; align-items:center; background:rgba(255,255,255,0.03); padding:4px 12px; border-radius:20px; border:1px solid rgba(255,255,255,0.05);">
+                            <span class="user-role" id="sessionUserRole">—</span>
+                            <span style="color:rgba(255,255,255,0.1); font-size:12px;">|</span>
+                            <span style="font-size:12px; color:#94a3b8; font-weight:500;">Today's Orders: <strong
+                                    id="todayOrderCount" style="color:#3b82f6; font-size:13px;">---</strong></span>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" onclick="logout()"
+                        style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:#94a3b8;padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.2s;"
+                        onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+                        onmouseout="this.style.background='rgba(255,255,255,0.06)'">Logout</button>
+                </div>
+            </header>
+
+            <div class="menu-grid" id="menuGrid">
+                <!-- Items will be injected by JavaScript -->
+            </div>
+        </main>
+
+        <!-- Order Summary -->
+        <section class="order-summary">
+            <div class="order-header">
+                <h3>Current Order</h3>
+                <div class="order-meta">
+                    <span>Order: <strong id="nextOrderId">#---</strong></span>
+                </div>
+            </div>
+
+            <!-- Held Orders Panel -->
+            <div id="heldOrdersPanel" style="display:none; margin-bottom: 12px;">
+                <div
+                    style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;margin-bottom:6px;">
+                    Held Orders</div>
+                <div id="heldOrdersList"></div>
+            </div>
+
+            <div class="cart-items" id="cartItems">
+                <!-- Cart items will be injected by JavaScript -->
+                <div class="empty-cart">
+                    <i data-lucide="shopping-cart"></i>
+                    <p>No items added yet</p>
+                </div>
+            </div>
+
+            <div class="billing-details">
+                <div class="bill-row">
+                    <span>Subtotal</span>
+                    <span id="subtotal">₹0.00</span>
+                </div>
+                <div class="bill-row total">
+                    <span>Total Amount</span>
+                    <span id="total">₹0.00</span>
+                </div>
+
+                <div class="payment-methods">
+                    <button class="pay-method active"><i data-lucide="credit-card"></i> Card</button>
+                    <button class="pay-method"><i data-lucide="banknote"></i> Cash</button>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" id="kotBtn" title="Print KOT (Kitchen Order Ticket)">
+                        <i data-lucide="receipt-text" style="width:14px;height:14px;"></i> KOT
+                    </button>
+                    <button class="btn btn-secondary" id="holdBtn" title="Hold current order">
+                        <i data-lucide="pause-circle" style="width:14px;height:14px;"></i> Hold
+                    </button>
+                    <button class="btn btn-secondary" id="clearBtn">Clear</button>
+                    <button class="btn btn-primary" id="payBtn">Pay</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Size Picker Modal -->
+    <div id="sizePickerModal" class="modal">
+        <div class="modal-content" style="max-width:300px;text-align:center;">
+            <h2 style="font-size:18px;margin-bottom:6px;" id="sizePickerItemName"></h2>
+            <p style="color:#94a3b8;font-size:13px;margin-bottom:24px;">Choose a size</p>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button class="btn btn-primary" id="sizePickerFull"
+                    style="flex:1;padding:16px;font-size:15px;"></button>
+                <button class="btn btn-secondary" id="sizePickerHalf"
+                    style="flex:1;padding:16px;font-size:15px;"></button>
+            </div>
+            <button onclick="document.getElementById('sizePickerModal').style.display='none'"
+                style="background:none;border:none;color:#64748b;cursor:pointer;font-size:13px;margin-top:16px;">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 20px;">Account Settings</h2>
+                <button onclick="document.getElementById('settingsModal').style.display='none'"
+                    style="background:none;border:none;color:#94a3b8;cursor:pointer;"><i data-lucide="x"></i></button>
+            </div>
+            <form id="settingsForm" style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="display: block; font-size: 13px; color: #94a3b8; margin-bottom: 5px;">Name</label>
+                    <input type="text" id="settingName"
+                        style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: white;"
+                        required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 13px; color: #94a3b8; margin-bottom: 5px;">Username</label>
+                    <input type="text" id="settingUsername"
+                        style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: white;"
+                        required>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 13px; color: #94a3b8; margin-bottom: 5px;">New Password
+                        (leave blank to keep current)</label>
+                    <input type="password" id="settingPassword"
+                        style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: white;">
+                </div>
+                <div id="settingsError"
+                    style="display: none; color: #ef4444; font-size: 13px; background: rgba(239,68,68,0.1); padding: 8px; border-radius: 6px;">
+                </div>
+                <div id="settingsSuccess"
+                    style="display: none; color: #22c55e; font-size: 13px; background: rgba(34,197,94,0.1); padding: 8px; border-radius: 6px;">
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- KOT Printer Modal -->
+    <div id="kotModal" class="modal">
+        <div class="modal-content" style="max-width: 520px; text-align: left;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                <h2 style="margin:0;font-size:18px;">KOT Printer</h2>
+                <button onclick="document.getElementById('kotModal').style.display='none'"
+                    style="background:none;border:none;color:#94a3b8;cursor:pointer;"><i data-lucide="x"></i></button>
+            </div>
+
+            <div style="font-size:12px;color:#94a3b8;line-height:1.4;margin-bottom:12px;">
+                Works with BLE ESC/POS printers that expose a writable GATT characteristic (common: service <code>0xFFE0</code>, char <code>0xFFE1</code>).
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+                <button class="btn btn-secondary" id="connectKotPrinterBtn">
+                    <i data-lucide="bluetooth" style="width:14px;height:14px;"></i> Connect Printer
+                </button>
+                <button class="btn btn-secondary" id="testKotPrinterBtn">Test Print</button>
+                <button class="btn btn-primary" id="printKotBtn">Print KOT</button>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom: 10px;">
+                <div>
+                    <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px;">Service UUID</label>
+                    <input id="kotServiceUuid" placeholder="FFE0 or full UUID" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: white;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:6px;">Characteristic UUID</label>
+                    <input id="kotCharUuid" placeholder="FFE1 or full UUID" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: white;">
+                </div>
+            </div>
+
+            <div id="kotStatus" style="display:none;font-size:12px;color:#94a3b8;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);padding:10px 12px;border-radius:10px;"></div>
+            <div id="kotError" style="display:none;font-size:12px;color:#ef4444;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.18);padding:10px 12px;border-radius:10px;margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <!-- Card Confirmation Modal -->
+    <div id="cardConfirmModal" class="modal">
+        <div class="modal-content">
+            <i data-lucide="credit-card" class="success-icon"
+                style="color: #3b82f6; background: rgba(59, 130, 246, 0.1);"></i>
+            <h2>Card Payment</h2>
+            <p>Payment received?</p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn btn-secondary"
+                    onclick="document.getElementById('cardConfirmModal').style.display='none'">No</button>
+                <button class="btn btn-primary" id="confirmCardPaymentBtn">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cash Payment Numpad Modal -->
+    <div id="cashModal" class="modal">
+        <div class="modal-content" style="max-width: 320px; padding: 25px;">
+            <h2 style="font-size: 18px; margin-bottom: 15px;">Cash Payment</h2>
+
+            <div
+                style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: left;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+                    <span style="color: #94a3b8;">Total Due:</span>
+                    <strong id="cashTotalDue" style="color: white;">₹0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+                    <span style="color: #94a3b8;">Received:</span>
+                    <strong id="cashReceivedDisplay" style="color: #22c55e; font-size: 18px;">₹0</strong>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; font-size: 14px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; margin-top: 8px;">
+                    <span style="color: #94a3b8;">Change:</span>
+                    <strong id="cashChange" style="color: #f59e0b;">₹0.00</strong>
+                </div>
+            </div>
+
+            <div class="numpad"
+                style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px;">
+                <!-- generated in JS/CSS or inline below -->
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" style="flex: 1;" onclick="closeCashModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex: 1;" id="confirmCashPaymentBtn" disabled>Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="successModal" class="modal">
+        <div class="modal-content">
+            <i data-lucide="check-circle" class="success-icon"></i>
+            <h2>Payment Successful</h2>
+            <p id="successOrderMsg">Order #--- has been processed.</p>
+            <button class="btn btn-primary" onclick="closeModal()">New Order</button>
+        </div>
+    </div>
+
+    <script src="billing.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

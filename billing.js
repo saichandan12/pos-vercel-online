@@ -1,0 +1,699 @@
+let menuItems = [];
+let cart = [];
+let heldOrders = [];
+let holdCounter = 1;
+let currentCategory = 'all';
+
+// Indian Currency Formatter
+const currencyFormatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2
+});
+
+async function fetchNextOrderId() {
+    try {
+        const response = await fetch('/api/orders/next-id');
+        const data = await response.json();
+        if (data && data.nextId !== undefined) {
+            document.getElementById('nextOrderId').textContent = '#' + data.nextId;
+        }
+    } catch (error) {
+        console.error('Error fetching next order ID:', error);
+    }
+}
+
+async function fetchTodayStats() {
+    try {
+        const response = await fetch('/api/orders/stats?status=daily');
+        const data = await response.json();
+        if (data && data.total_orders !== undefined) {
+            document.getElementById('todayOrderCount').textContent = data.total_orders;
+        }
+    } catch (error) {
+        console.error('Error fetching today stats:', error);
+    }
+}
+
+// ── Auth guard ──
+const rawUser = sessionStorage.getItem('pos_user');
+if (!rawUser) window.location.href = 'pos_login.html';
+const sessionUser = JSON.parse(rawUser || '{}');
+
+// Display session user in top-bar
+const roleLabels = { staff: 'Cashier', admin: 'Admin' };
+document.getElementById('sessionUserName').textContent  = sessionUser.name || '—';
+document.getElementById('sessionUserRole').textContent  = roleLabels[sessionUser.role] || '—';
+
+function logout() {
+    sessionStorage.removeItem('pos_user');
+    window.location.href = 'pos_login.html';
+}
+
+// ── Role-based Exit Button ──
+const exitBtn = document.getElementById('exitBtn');
+if (sessionUser.role === 'staff') {
+    exitBtn.style.display = 'none';
+} else {
+    exitBtn.addEventListener('click', () => {
+        window.location.href = 'admin.html';
+    });
+}
+
+// ── Settings Logic ──
+document.getElementById('settingsBtn').addEventListener('click', () => {
+    document.getElementById('settingName').value = sessionUser.name || '';
+    document.getElementById('settingUsername').value = sessionUser.username || sessionUser.name; // fallback to name if username is missing in old session
+    document.getElementById('settingsError').style.display = 'none';
+    document.getElementById('settingsSuccess').style.display = 'none';
+    document.getElementById('settingPassword').value = '';
+    document.getElementById('settingsModal').style.display = 'flex';
+});
+
+document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newName = document.getElementById('settingName').value.trim();
+    const newUsername = document.getElementById('settingUsername').value.trim();
+    const newPassword = document.getElementById('settingPassword').value;
+
+    try {
+        const response = await fetch('/api/users/update', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                currentUsername: sessionUser.username || sessionUser.name,
+                newName,
+                newUsername,
+                newPassword
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            document.getElementById('settingsSuccess').textContent = result.message;
+            document.getElementById('settingsSuccess').style.display = 'block';
+            document.getElementById('settingsError').style.display = 'none';
+            // Update session and UI
+            sessionUser.name = newName;
+            sessionUser.username = newUsername;
+            document.getElementById('sessionUserName').textContent = newName;
+            sessionStorage.setItem('pos_user', JSON.stringify(sessionUser));
+            setTimeout(() => { document.getElementById('settingsModal').style.display = 'none'; }, 1500);
+        } else {
+            document.getElementById('settingsError').textContent = result.message || 'Update failed.';
+            document.getElementById('settingsError').style.display = 'block';
+            document.getElementById('settingsSuccess').style.display = 'none';
+        }
+    } catch (err) {
+        document.getElementById('settingsError').textContent = 'Server error.';
+        document.getElementById('settingsError').style.display = 'block';
+    }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', async () => {
+    await fetchItems();
+    await fetchNextOrderId();
+    await fetchTodayStats();
+    renderMenu();
+    updateDateTime();
+    setInterval(updateDateTime, 60000);
+
+    // Category filtering
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentCategory = btn.dataset.category;
+            renderMenu();
+        });
+    });
+
+    // Toggle categories
+    const categoryToggle = document.getElementById('categoryToggle');
+    const categoriesNav = document.getElementById('categoriesNav');
+    if (categoryToggle && categoriesNav) {
+        categoryToggle.addEventListener('click', () => {
+            categoriesNav.classList.toggle('collapsed');
+            categoryToggle.classList.toggle('collapsed');
+        });
+    }
+
+    // Search functionality
+    document.getElementById('menuSearch').addEventListener('input', (e) => {
+        renderMenu(e.target.value);
+    });
+
+    // Clear cart
+    document.getElementById('clearBtn').addEventListener('click', () => {
+        cart = [];
+        renderCart();
+    });
+
+    // KOT
+    document.getElementById('kotBtn').addEventListener('click', () => {
+        openKotModal();
+    });
+
+    // Hold Order
+    document.getElementById('holdBtn').addEventListener('click', () => {
+        if (cart.length === 0) return;
+        heldOrders.push({ id: holdCounter++, cart: [...cart], heldAt: new Date() });
+        cart = [];
+        renderCart();
+        renderHeldOrders();
+    });
+
+    // Payment method toggle
+    document.querySelectorAll('.pay-method').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.pay-method').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    // Pay button
+    document.getElementById('payBtn').addEventListener('click', () => {
+        if (cart.length === 0) return;
+        
+        const isCard = document.querySelector('.pay-method.active').textContent.includes('Card');
+        if (isCard) {
+            document.getElementById('cardConfirmModal').style.display = 'flex';
+        } else {
+            openCashModal();
+        }
+    });
+
+    // Card Confirm
+    document.getElementById('confirmCardPaymentBtn').addEventListener('click', async () => {
+        document.getElementById('cardConfirmModal').style.display = 'none';
+        await saveOrder();
+    });
+
+    // KOT modal buttons
+    const connectBtn = document.getElementById('connectKotPrinterBtn');
+    const testBtn = document.getElementById('testKotPrinterBtn');
+    const printBtn = document.getElementById('printKotBtn');
+    if (connectBtn) connectBtn.addEventListener('click', connectKotPrinter);
+    if (testBtn) testBtn.addEventListener('click', () => kotPrintText(buildTestKot()));
+    if (printBtn) printBtn.addEventListener('click', () => {
+        if (!cart.length) return alert('Cart is empty.');
+        kotPrintText(buildKotFromCart(cart));
+    });
+});
+
+async function fetchItems() {
+    try {
+        const response = await fetch('/api/items');
+        menuItems = await response.json();
+    } catch (error) {
+        console.error('Error fetching items:', error);
+        // Fallback to empty if server is down, or alert user
+    }
+}
+
+// ──────────────────────────────────────────
+// KOT (Kitchen Order Ticket) via Web Bluetooth
+// ──────────────────────────────────────────
+let kotBleDevice = null;
+let kotBleCharacteristic = null;
+
+function openKotModal() {
+    document.getElementById('kotModal').style.display = 'flex';
+    const svc = document.getElementById('kotServiceUuid');
+    const chr = document.getElementById('kotCharUuid');
+    svc.value = localStorage.getItem('kot_service_uuid') || 'FFE0';
+    chr.value = localStorage.getItem('kot_char_uuid') || 'FFE1';
+    setKotStatus(kotBleCharacteristic ? 'Printer connected.' : 'Not connected.');
+    setKotError('');
+    lucide.createIcons();
+}
+
+function setKotStatus(msg) {
+    const el = document.getElementById('kotStatus');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? 'block' : 'none';
+}
+
+function setKotError(msg) {
+    const el = document.getElementById('kotError');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? 'block' : 'none';
+}
+
+function normalizeUuid(input) {
+    const v = String(input || '').trim();
+    if (!v) return null;
+    // Accept "FFE0" and convert to 0xFFE0 style UUID for Web Bluetooth
+    if (/^[0-9a-fA-F]{4}$/.test(v)) return `0000${v.toLowerCase()}-0000-1000-8000-00805f9b34fb`;
+    return v;
+}
+
+async function connectKotPrinter() {
+    try {
+        setKotError('');
+        if (!navigator.bluetooth) {
+            throw new Error('Web Bluetooth not supported in this browser. Use Chrome/Edge on desktop.');
+        }
+
+        const serviceUuidRaw = document.getElementById('kotServiceUuid').value;
+        const charUuidRaw = document.getElementById('kotCharUuid').value;
+        const serviceUuid = normalizeUuid(serviceUuidRaw);
+        const charUuid = normalizeUuid(charUuidRaw);
+        if (!serviceUuid || !charUuid) throw new Error('Please enter service/characteristic UUIDs.');
+
+        localStorage.setItem('kot_service_uuid', serviceUuidRaw.trim());
+        localStorage.setItem('kot_char_uuid', charUuidRaw.trim());
+
+        setKotStatus('Select your printer…');
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: [serviceUuid] }],
+            optionalServices: [serviceUuid],
+        });
+
+        kotBleDevice = device;
+        kotBleDevice.addEventListener('gattserverdisconnected', () => {
+            kotBleCharacteristic = null;
+            setKotStatus('Printer disconnected.');
+        });
+
+        setKotStatus('Connecting…');
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(serviceUuid);
+        const characteristic = await service.getCharacteristic(charUuid);
+
+        kotBleCharacteristic = characteristic;
+        setKotStatus(`Connected to: ${device.name || 'BLE Printer'}`);
+    } catch (err) {
+        console.error(err);
+        setKotError(err.message || 'Failed to connect.');
+        setKotStatus('');
+    }
+}
+
+function buildKotFromCart(cartItems) {
+    const ts = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+    const lines = [];
+    lines.push('KOT');
+    lines.push('------------------------------');
+    lines.push(`Time: ${ts}`);
+    lines.push(`Cashier: ${sessionUser.name || '—'}`);
+    lines.push('------------------------------');
+
+    cartItems.forEach(item => {
+        const qty = item.quantity || 1;
+        const label = item.variant ? `${item.name} (${item.variant})` : item.name;
+        lines.push(`${qty} x ${label}`);
+    });
+
+    lines.push('------------------------------');
+    lines.push('\n\n');
+    return lines.join('\n');
+}
+
+function buildTestKot() {
+    return ['KOT TEST', '------------------------------', 'Bluetooth OK', '\n\n'].join('\n');
+}
+
+async function kotPrintText(text) {
+    try {
+        setKotError('');
+        if (!kotBleCharacteristic) throw new Error('Printer not connected. Click “Connect Printer”.');
+        setKotStatus('Printing…');
+
+        // ESC/POS init + text + cut (cut may be ignored by some BLE printers)
+        const payload = escposEncode(text, true);
+        await bleWriteInChunks(kotBleCharacteristic, payload, 180);
+
+        setKotStatus('Printed.');
+    } catch (err) {
+        console.error(err);
+        setKotError(err.message || 'Print failed.');
+        setKotStatus('');
+    }
+}
+
+function escposEncode(text, doCut) {
+    const encoder = new TextEncoder();
+    const init = new Uint8Array([0x1B, 0x40]); // ESC @
+    const body = encoder.encode(String(text || ''));
+    const cut = doCut ? new Uint8Array([0x1D, 0x56, 0x41, 0x10]) : new Uint8Array([]);
+    const out = new Uint8Array(init.length + body.length + cut.length);
+    out.set(init, 0);
+    out.set(body, init.length);
+    out.set(cut, init.length + body.length);
+    return out;
+}
+
+async function bleWriteInChunks(characteristic, bytes, chunkSize) {
+    const max = chunkSize || 180;
+    for (let i = 0; i < bytes.length; i += max) {
+        const chunk = bytes.slice(i, i + max);
+        await characteristic.writeValueWithoutResponse(chunk);
+        await new Promise(r => setTimeout(r, 30));
+    }
+}
+
+async function saveOrder() {
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const orderData = {
+        subtotal,
+        total: subtotal,
+        cashier_name: sessionUser.name || 'Unknown',
+        items: cart.map(item => ({
+            id: item.id,
+            quantity: item.quantity,
+            price: item.price
+        }))
+    };
+
+    try {
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(orderData)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            document.getElementById('successModal').style.display = 'flex';
+            document.getElementById('successOrderMsg').textContent = `Order #${result.orderId} has been processed.`;
+            // Sync stats
+            fetchNextOrderId();
+            fetchTodayStats();
+        }
+    } catch (error) {
+        console.error('Error saving order:', error);
+        alert('Failed to save order. Please check if the server is running.');
+    }
+}
+
+function renderMenu(searchTerm = '') {
+    const grid = document.getElementById('menuGrid');
+    grid.innerHTML = '';
+
+    const filtered = menuItems.filter(item => {
+        const matchesCategory = currentCategory === 'all' || item.category === currentCategory;
+        const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesCategory && matchesSearch;
+    });
+
+    const parseVariantFromName = (name) => {
+        const m = String(name || '').match(/^(.*)\s+\(([^)]+)\)\s*$/);
+        if (!m) return { baseName: String(name || ''), variantLabel: null };
+        return { baseName: m[1].trim(), variantLabel: m[2].trim() };
+    };
+
+    const groups = new Map(); // key -> { baseName, category, items: [] }
+    for (const item of filtered) {
+        const { baseName, variantLabel } = parseVariantFromName(item.name);
+        const key = `${item.category}::${baseName}`.toLowerCase();
+        if (!groups.has(key)) groups.set(key, { baseName, category: item.category, items: [] });
+        groups.get(key).items.push({ ...item, _baseName: baseName, _variantLabel: variantLabel });
+    }
+
+    Array.from(groups.values()).forEach(group => {
+        const items = group.items.slice().sort((a, b) => {
+            // Prefer ordering by numeric size if present ("4 pcs", "6 pcs", etc.)
+            const na = Number((a._variantLabel || '').match(/(\d+)/)?.[1] || NaN);
+            const nb = Number((b._variantLabel || '').match(/(\d+)/)?.[1] || NaN);
+            if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+            return String(a._variantLabel || '').localeCompare(String(b._variantLabel || ''));
+        });
+
+        const card = document.createElement('div');
+        card.className = 'item-card list-item';
+
+        if (items.length > 1 && items.every(i => i._variantLabel)) {
+            const first = items[0];
+            card.classList.add('item-card-variant');
+            card.innerHTML = `
+                <div class="item-info">
+                    <div class="item-name">${group.baseName}</div>
+                    <div class="item-price-group">
+                        <span class="item-price" data-role="variantPrice">${currencyFormatter.format(first.price)}</span>
+                        <div class="item-variant-row">
+                            <select class="item-variant-select" data-role="variantSelect" aria-label="Choose size">
+                                ${items.map((it, idx) => `<option value="${idx}">${escapeHtml(it._variantLabel)} — ${currencyFormatter.format(it.price)}</option>`).join('')}
+                            </select>
+                            <button class="item-add-btn" type="button" data-role="variantAdd">Add</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const selectEl = card.querySelector('[data-role="variantSelect"]');
+            const priceEl = card.querySelector('[data-role="variantPrice"]');
+            const addEl = card.querySelector('[data-role="variantAdd"]');
+
+            const getSelectedItem = () => items[Number(selectEl.value) || 0];
+
+            selectEl.addEventListener('change', () => {
+                const it = getSelectedItem();
+                priceEl.textContent = currencyFormatter.format(it.price);
+            });
+            addEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const it = getSelectedItem();
+                addToCart({ ...it, chosenPrice: it.price, variant: it._variantLabel, cartKey: `${it.id}_v` });
+            });
+        } else {
+            const item = items[0];
+            card.innerHTML = `
+                <div class="item-info">
+                    <div class="item-name">${escapeHtml(item.name)}</div>
+                    <div class="item-price-group">
+                        <span class="item-price">${currencyFormatter.format(item.price)}</span>
+                        ${item.price_half ? `<span class="item-price-half">&frac12; ${currencyFormatter.format(item.price_half)}</span>` : ''}
+                    </div>
+                </div>
+            `;
+            card.addEventListener('click', () => handleItemClick(item));
+        }
+
+        grid.appendChild(card);
+    });
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+}
+
+function handleItemClick(item) {
+    if (item.price_half) {
+        // Show size picker
+        document.getElementById('sizePickerItemName').textContent = item.name;
+        document.getElementById('sizePickerFull').textContent = `Full  ${currencyFormatter.format(item.price)}`;
+        document.getElementById('sizePickerHalf').textContent = `\u00bd  ${currencyFormatter.format(item.price_half)}`;
+        document.getElementById('sizePickerFull').onclick = () => {
+            addToCart({ ...item, chosenPrice: item.price, variant: 'Full', cartKey: `${item.id}_full` });
+            document.getElementById('sizePickerModal').style.display = 'none';
+        };
+        document.getElementById('sizePickerHalf').onclick = () => {
+            addToCart({ ...item, chosenPrice: item.price_half, variant: '\u00bd', cartKey: `${item.id}_half` });
+            document.getElementById('sizePickerModal').style.display = 'none';
+        };
+        document.getElementById('sizePickerModal').style.display = 'flex';
+    } else {
+        addToCart({ ...item, chosenPrice: item.price, cartKey: `${item.id}_full` });
+    }
+}
+
+function addToCart(item) {
+    const key = item.cartKey || `${item.id}_full`;
+    const existing = cart.find(i => i.cartKey === key);
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({ ...item, cartKey: key, price: item.chosenPrice ?? item.price, quantity: 1 });
+    }
+    renderCart();
+}
+
+function removeFromCart(cartKey) {
+    const item = cart.find(i => i.cartKey === cartKey);
+    if (!item) return;
+    if (item.quantity > 1) {
+        item.quantity -= 1;
+    } else {
+        cart = cart.filter(i => i.cartKey !== cartKey);
+    }
+    renderCart();
+}
+
+function renderCart() {
+    const cartContainer = document.getElementById('cartItems');
+    cartContainer.innerHTML = '';
+
+    if (cart.length === 0) {
+        cartContainer.innerHTML = `
+            <div class="empty-cart">
+                <i data-lucide="shopping-cart"></i>
+                <p>No items added yet</p>
+            </div>
+        `;
+        lucide.createIcons();
+        updateTotals();
+        return;
+    }
+
+    cart.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'cart-item';
+        const variantLabel = item.variant ? ` <span style="font-size:11px;color:#64748b;font-weight:400;">(${item.variant})</span>` : '';
+        div.innerHTML = `
+            <div class="cart-item-info">
+                <h4>${item.name}${variantLabel}</h4>
+                <span>${currencyFormatter.format(item.price)} x ${item.quantity}</span>
+            </div>
+            <div class="cart-item-qty">
+                <button class="qty-btn" data-action="remove" data-key="${item.cartKey}">-</button>
+                <span>${item.quantity}</span>
+                <button class="qty-btn" data-action="add" data-key="${item.cartKey}">+</button>
+            </div>
+        `;
+        div.querySelector('[data-action="remove"]').onclick = () => removeFromCart(item.cartKey);
+        div.querySelector('[data-action="add"]').onclick = () => {
+            const cartItem = cart.find(i => i.cartKey === item.cartKey);
+            if (cartItem) { cartItem.quantity += 1; renderCart(); }
+        };
+        cartContainer.appendChild(div);
+    });
+
+    updateTotals();
+}
+
+function updateTotals() {
+    const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    document.getElementById('subtotal').textContent = currencyFormatter.format(total);
+    document.getElementById('total').textContent = currencyFormatter.format(total);
+}
+
+function renderHeldOrders() {
+    const panel = document.getElementById('heldOrdersPanel');
+    const list = document.getElementById('heldOrdersList');
+
+    if (heldOrders.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = 'block';
+    list.innerHTML = heldOrders.map(order => {
+        const itemCount = order.cart.reduce((s, i) => s + i.quantity, 0);
+        const total = order.cart.reduce((s, i) => s + i.price * i.quantity, 0);
+        const timeStr = order.heldAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        return `
+            <div class="held-order-pill">
+                <div>
+                    <div class="held-order-pill-label">Hold #${order.id}</div>
+                    <div class="held-order-pill-meta">${itemCount} item${itemCount !== 1 ? 's' : ''} · ${currencyFormatter.format(total)} · ${timeStr}</div>
+                </div>
+                <button class="held-order-pill-resume" onclick="resumeHeldOrder(${order.id})">Resume</button>
+            </div>
+        `;
+    }).join('');
+}
+
+function resumeHeldOrder(id) {
+    const idx = heldOrders.findIndex(o => o.id === id);
+    if (idx === -1) return;
+
+    // If current cart has items, hold it first
+    if (cart.length > 0) {
+        heldOrders.push({ id: holdCounter++, cart: [...cart], heldAt: new Date() });
+    }
+
+    cart = heldOrders[idx].cart;
+    heldOrders.splice(idx, 1);
+    renderCart();
+    renderHeldOrders();
+}
+
+function updateDateTime() {
+    const now = new Date();
+    const options = { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+    document.getElementById('dateTime').textContent = now.toLocaleDateString('en-US', options).replace(',', ' |');
+}
+
+function closeModal() {
+    document.getElementById('successModal').style.display = 'none';
+    cart = [];
+    renderCart();
+}
+
+// ── Cash Numpad Logic ──
+let currentCashReceived = '';
+let orderTotalToPay = 0;
+
+function generateNumpad() {
+    const numpad = document.querySelector('.numpad');
+    if (numpad.children.length > 0) return; // already generated
+
+    const keys = [
+        '1', '2', '3',
+        '4', '5', '6',
+        '7', '8', '9',
+        'C', '0', 'DEL'
+    ];
+
+    keys.forEach(key => {
+        const btn = document.createElement('button');
+        btn.className = `numpad-btn ${['C', 'DEL'].includes(key) ? 'numpad-action' : ''}`;
+        btn.textContent = key;
+        btn.onclick = () => handleNumpad(key);
+        numpad.appendChild(btn);
+    });
+}
+
+function openCashModal() {
+    orderTotalToPay = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    document.getElementById('cashTotalDue').textContent = currencyFormatter.format(orderTotalToPay);
+    currentCashReceived = '';
+    updateCashDisplay();
+    generateNumpad();
+    
+    document.getElementById('cashModal').style.display = 'flex';
+}
+
+function closeCashModal() {
+    document.getElementById('cashModal').style.display = 'none';
+}
+
+function handleNumpad(key) {
+    if (key === 'C') {
+        currentCashReceived = '';
+    } else if (key === 'DEL') {
+        currentCashReceived = currentCashReceived.slice(0, -1);
+    } else {
+        if (currentCashReceived.length < 8) currentCashReceived += key;
+    }
+    updateCashDisplay();
+}
+
+function updateCashDisplay() {
+    const receivedVal = parseFloat(currentCashReceived) || 0;
+    document.getElementById('cashReceivedDisplay').textContent = '₹' + receivedVal.toLocaleString('en-IN');
+    
+    const change = receivedVal - orderTotalToPay;
+    document.getElementById('cashChange').textContent = change > 0 ? currencyFormatter.format(change) : '₹0.00';
+    
+    const confirmBtn = document.getElementById('confirmCashPaymentBtn');
+    confirmBtn.disabled = receivedVal < orderTotalToPay;
+}
+
+document.getElementById('confirmCashPaymentBtn').addEventListener('click', async () => {
+    closeCashModal();
+    await saveOrder();
+});
