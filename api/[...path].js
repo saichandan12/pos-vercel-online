@@ -1,13 +1,6 @@
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { query } = require('./_lib/db');
 const { sendJson, readJson } = require('./_lib/http');
-
-function getJwtSecret() {
-  const v = process.env.JWT_SECRET;
-  if (!v) throw new Error('Missing env var: JWT_SECRET');
-  return v;
-}
 
 function pathOf(req) {
   return new URL(req.url, 'http://localhost').pathname;
@@ -30,8 +23,7 @@ module.exports = async (req, res) => {
       if (!user) return sendJson(res, 401, { success: false, message: 'Invalid username or password.' });
       const ok = await bcrypt.compare(password, user.password);
       if (!ok) return sendJson(res, 401, { success: false, message: 'Invalid username or password.' });
-      const token = jwt.sign({ username: user.username, role: user.role, name: user.name }, getJwtSecret(), { expiresIn: '7d' });
-      return sendJson(res, 200, { success: true, role: user.role, name: user.name, username: user.username, token });
+      return sendJson(res, 200, { success: true, role: user.role, name: user.name, username: user.username, id: Number(user.id) });
     }
 
     if (pathname === '/api/register' && req.method === 'POST') {
