@@ -574,9 +574,23 @@ function renderCart() {
 
 function updateTotals() {
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
     document.getElementById('subtotal').textContent = currencyFormatter.format(total);
     document.getElementById('total').textContent = currencyFormatter.format(total);
+
+    const mobileTotalBtn = document.getElementById('mobileCartTotal');
+    if (mobileTotalBtn) {
+        mobileTotalBtn.textContent = currencyFormatter.format(total);
+    }
+    const mobileBtn = document.getElementById('mobileViewCartBtn');
+    if (mobileBtn) {
+        if (itemCount > 0) {
+            mobileBtn.style.display = '';
+        } else {
+            mobileBtn.style.display = 'none';
+        }
+    }
 }
 
 function renderHeldOrders() {

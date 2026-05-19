@@ -6,3 +6,5 @@ node_modules/
 pos.db
 uploads/
 *.log
+.vercel
+.env*.local

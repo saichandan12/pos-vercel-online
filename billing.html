@@ -147,12 +147,23 @@
             </div>
         </main>
 
+        <!-- Mobile Floating Cart Button -->
+        <button id="mobileViewCartBtn" class="mobile-view-cart-btn" onclick="document.querySelector('.order-summary').classList.add('mobile-open')">
+            <span><i data-lucide="shopping-cart" style="width:18px;height:18px;margin-bottom:-4px;"></i> View Cart</span>
+            <strong id="mobileCartTotal">₹0.00</strong>
+        </button>
+
         <!-- Order Summary -->
         <section class="order-summary">
             <div class="order-header">
                 <h3>Current Order</h3>
-                <div class="order-meta">
-                    <span>Order: <strong id="nextOrderId">#---</strong></span>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="order-meta">
+                        <span>Order: <strong id="nextOrderId">#---</strong></span>
+                    </div>
+                    <button class="mobile-close-cart" onclick="document.querySelector('.order-summary').classList.remove('mobile-open')">
+                        <i data-lucide="x"></i>
+                    </button>
                 </div>
             </div>
 
