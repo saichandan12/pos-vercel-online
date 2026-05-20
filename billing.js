@@ -60,6 +60,32 @@ if (sessionUser.role === 'staff') {
     });
 }
 
+// ── Modal Helpers ──
+function showModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = 'flex';
+    const focusable = el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length) setTimeout(() => focusable[0].focus(), 100);
+    setTimeout(() => el.classList.add('show'), 10);
+}
+
+function hideModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('show');
+    setTimeout(() => el.style.display = 'none', 200);
+}
+
+// ── Theme & Contrast Toggles ──
+document.addEventListener('DOMContentLoaded', () => {
+    const themeBtn = document.getElementById('themeToggleBtn');
+    if (themeBtn) themeBtn.addEventListener('click', () => document.documentElement.classList.toggle('theme-teal'));
+    
+    const contrastBtn = document.getElementById('highContrastBtn');
+    if (contrastBtn) contrastBtn.addEventListener('click', () => document.documentElement.classList.toggle('high-contrast'));
+});
+
 // ── Settings Logic ──
 document.getElementById('settingsBtn').addEventListener('click', () => {
     document.getElementById('settingName').value = sessionUser.name || '';
@@ -67,7 +93,7 @@ document.getElementById('settingsBtn').addEventListener('click', () => {
     document.getElementById('settingsError').style.display = 'none';
     document.getElementById('settingsSuccess').style.display = 'none';
     document.getElementById('settingPassword').value = '';
-    document.getElementById('settingsModal').style.display = 'flex';
+    showModal('settingsModal');
 });
 
 document.getElementById('settingsForm').addEventListener('submit', async (e) => {
@@ -98,7 +124,7 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
             sessionUser.username = newUsername;
             document.getElementById('sessionUserName').textContent = newName;
             sessionStorage.setItem('pos_user', JSON.stringify(sessionUser));
-            setTimeout(() => { document.getElementById('settingsModal').style.display = 'none'; }, 1500);
+            setTimeout(() => { hideModal('settingsModal'); }, 1500);
         } else {
             document.getElementById('settingsError').textContent = result.message || 'Update failed.';
             document.getElementById('settingsError').style.display = 'block';
@@ -116,6 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetchNextOrderId();
     await fetchTodayStats();
     renderMenu();
+    if (typeof renderFavorites === 'function') renderFavorites();
     updateDateTime();
     setInterval(updateDateTime, 60000);
 
@@ -139,10 +166,82 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Search functionality
-    document.getElementById('menuSearch').addEventListener('input', (e) => {
-        renderMenu(e.target.value);
-    });
+    // Search functionality & Autocomplete
+    const searchInput = document.getElementById('menuSearch');
+    const autoResults = document.getElementById('autocompleteResults');
+    let focusedIndex = -1;
+    let currentAutoItems = [];
+
+    if (searchInput && autoResults) {
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            renderMenu(val);
+            
+            if (!val) {
+                autoResults.style.display = 'none';
+                return;
+            }
+            
+            currentAutoItems = menuItems.filter(item => item.name.toLowerCase().includes(val)).slice(0, 5);
+            if (currentAutoItems.length > 0) {
+                autoResults.innerHTML = currentAutoItems.map((item, idx) => `
+                    <div class="auto-item" data-idx="${idx}">
+                        <span>${escapeHtml(item.name)}</span>
+                        <span style="color:var(--muted)">${currencyFormatter.format(item.price)}</span>
+                    </div>
+                `).join('');
+                autoResults.style.display = 'block';
+                focusedIndex = -1;
+            } else {
+                autoResults.style.display = 'none';
+            }
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (autoResults.style.display === 'none') return;
+            const items = autoResults.querySelectorAll('.auto-item');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                focusedIndex = (focusedIndex + 1) % items.length;
+                updateFocus();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                focusedIndex = (focusedIndex - 1 + items.length) % items.length;
+                updateFocus();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (focusedIndex >= 0 && currentAutoItems[focusedIndex]) {
+                    handleItemClick(currentAutoItems[focusedIndex]);
+                    searchInput.value = '';
+                    renderMenu('');
+                    autoResults.style.display = 'none';
+                }
+            }
+            function updateFocus() {
+                items.forEach((item, idx) => {
+                    if (idx === focusedIndex) item.style.background = 'var(--bg3)';
+                    else item.style.background = '';
+                });
+            }
+        });
+
+        autoResults.addEventListener('click', (e) => {
+            const itemEl = e.target.closest('.auto-item');
+            if (itemEl) {
+                const idx = itemEl.dataset.idx;
+                handleItemClick(currentAutoItems[idx]);
+                searchInput.value = '';
+                renderMenu('');
+                autoResults.style.display = 'none';
+            }
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-container')) {
+                autoResults.style.display = 'none';
+            }
+        });
+    }
 
     // Clear cart
     document.getElementById('clearBtn').addEventListener('click', () => {
@@ -178,7 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const isCard = document.querySelector('.pay-method.active').textContent.includes('Card');
         if (isCard) {
-            document.getElementById('cardConfirmModal').style.display = 'flex';
+            showModal('cardConfirmModal');
         } else {
             openCashModal();
         }
@@ -186,7 +285,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Card Confirm
     document.getElementById('confirmCardPaymentBtn').addEventListener('click', async () => {
-        document.getElementById('cardConfirmModal').style.display = 'none';
+        hideModal('cardConfirmModal');
         await saveOrder();
     });
 
@@ -219,7 +318,7 @@ let kotBleDevice = null;
 let kotBleCharacteristic = null;
 
 function openKotModal() {
-    document.getElementById('kotModal').style.display = 'flex';
+    showModal('kotModal');
     const svc = document.getElementById('kotServiceUuid');
     const chr = document.getElementById('kotCharUuid');
     svc.value = localStorage.getItem('kot_service_uuid') || 'FFE0';
@@ -380,7 +479,7 @@ async function saveOrder() {
 
         const result = await response.json();
         if (result.success) {
-            document.getElementById('successModal').style.display = 'flex';
+            showModal('successModal');
             document.getElementById('successOrderMsg').textContent = `Order #${result.orderId} has been processed.`;
             // Sync stats
             fetchNextOrderId();
@@ -433,16 +532,16 @@ function renderMenu(searchTerm = '') {
             card.classList.add('item-card-variant');
             card.innerHTML = `
                 <div class="item-info">
-                    <div class="item-name">${group.baseName}</div>
+                    <div class="item-name">${escapeHtml(group.baseName)}</div>
                     <div class="item-price-group">
                         <span class="item-price" data-role="variantPrice">${currencyFormatter.format(first.price)}</span>
-                        <div class="item-variant-row">
-                            <select class="item-variant-select" data-role="variantSelect" aria-label="Choose size">
-                                ${items.map((it, idx) => `<option value="${idx}">${escapeHtml(it._variantLabel)} — ${currencyFormatter.format(it.price)}</option>`).join('')}
-                            </select>
-                            <button class="item-add-btn" type="button" data-role="variantAdd">Add</button>
-                        </div>
                     </div>
+                </div>
+                <div class="item-variant-row">
+                    <select class="item-variant-select" data-role="variantSelect" aria-label="Choose size">
+                        ${items.map((it, idx) => `<option value="${idx}">${escapeHtml(it._variantLabel)} — ${currencyFormatter.format(it.price)}</option>`).join('')}
+                    </select>
+                    <button class="item-add-btn" type="button" data-role="variantAdd">Add</button>
                 </div>
             `;
 
@@ -471,7 +570,14 @@ function renderMenu(searchTerm = '') {
                         ${item.price_half ? `<span class="item-price-half">&frac12; ${currencyFormatter.format(item.price_half)}</span>` : ''}
                     </div>
                 </div>
+                <div class="item-add-row">
+                    <button class="item-add-btn" type="button" data-role="addBtn">+ Add</button>
+                </div>
             `;
+            card.querySelector('[data-role="addBtn"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleItemClick(item);
+            });
             card.addEventListener('click', () => handleItemClick(item));
         }
 
@@ -496,13 +602,13 @@ function handleItemClick(item) {
         document.getElementById('sizePickerHalf').textContent = `\u00bd  ${currencyFormatter.format(item.price_half)}`;
         document.getElementById('sizePickerFull').onclick = () => {
             addToCart({ ...item, chosenPrice: item.price, variant: 'Full', cartKey: `${item.id}_full` });
-            document.getElementById('sizePickerModal').style.display = 'none';
+            hideModal('sizePickerModal');
         };
         document.getElementById('sizePickerHalf').onclick = () => {
             addToCart({ ...item, chosenPrice: item.price_half, variant: '\u00bd', cartKey: `${item.id}_half` });
-            document.getElementById('sizePickerModal').style.display = 'none';
+            hideModal('sizePickerModal');
         };
-        document.getElementById('sizePickerModal').style.display = 'flex';
+        showModal('sizePickerModal');
     } else {
         addToCart({ ...item, chosenPrice: item.price, cartKey: `${item.id}_full` });
     }
@@ -641,7 +747,7 @@ function updateDateTime() {
 }
 
 function closeModal() {
-    document.getElementById('successModal').style.display = 'none';
+    hideModal('successModal');
     cart = [];
     renderCart();
 }
@@ -678,11 +784,11 @@ function openCashModal() {
     updateCashDisplay();
     generateNumpad();
     
-    document.getElementById('cashModal').style.display = 'flex';
+    showModal('cashModal');
 }
 
 function closeCashModal() {
-    document.getElementById('cashModal').style.display = 'none';
+    hideModal('cashModal');
 }
 
 function handleNumpad(key) {
@@ -711,3 +817,24 @@ document.getElementById('confirmCashPaymentBtn').addEventListener('click', async
     closeCashModal();
     await saveOrder();
 });
+
+function renderFavorites() {
+    const favBar = document.getElementById('favoritesBar');
+    if (!favBar) return;
+    
+    // Pick top 6 items as favorites
+    const favs = menuItems.slice(0, 6);
+    if (favs.length === 0) {
+        favBar.style.display = 'none';
+        return;
+    }
+    
+    favBar.style.display = 'flex';
+    favBar.innerHTML = favs.map(item => `
+        <button class="fav-item" onclick='handleFavClick(${JSON.stringify(item)})'>
+            ${escapeHtml(item.name)}
+        </button>
+    `).join('');
+}
+window.handleFavClick = (item) => handleItemClick(item);
+
