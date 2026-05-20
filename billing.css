@@ -641,27 +641,29 @@ select optgroup{background:var(--bg);color:var(--accent);font-size:11px;font-wei
 
   .item-card{
     cursor:pointer;
-    flex-direction: row;
-    align-items: center;
-    padding: 8px 12px;
+    flex-direction: column;
+    padding: 0;
   }
   .item-info{
-    padding:0;
-    flex:1;
-    gap:4px;
-    justify-content: center;
-  }
-  .item-name{font-size:14px; margin-bottom: 2px;}
-  .item-price-group{margin-top:0;}
-  .item-price{font-size:15px;}
-  .item-add-row, .item-variant-row{
-    padding:0;
     flex-direction: row;
-    width: auto;
-    margin-left: auto;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    gap: 8px;
+  }
+  .item-name{font-size:14px; margin: 0;}
+  .item-price-group{margin:0;}
+  .item-price{font-size:15px;}
+  
+  .item-add-row, .item-variant-row{
+    width: 100%;
+    padding: 0 12px 12px;
+    justify-content: space-between;
   }
   .item-variant-select{
-    max-width: 120px;
+    flex: 1;
+    max-width: none;
+    margin-right: 8px;
   }
   .item-add-btn{padding:8px 16px;font-size:13px;border-radius:20px;}
 
