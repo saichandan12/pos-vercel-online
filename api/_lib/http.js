@@ -5,6 +5,12 @@ function sendJson(res, status, data) {
 }
 
 async function readJson(req) {
+  if (req.body) {
+    if (typeof req.body === 'string') {
+      try { return JSON.parse(req.body); } catch (e) { return {}; }
+    }
+    return req.body;
+  }
   const chunks = [];
   for await (const c of req) chunks.push(c);
   const raw = Buffer.concat(chunks).toString('utf8') || '';
