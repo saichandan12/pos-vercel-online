@@ -204,6 +204,49 @@ module.exports = async (req, res) => {
       return sendJson(res, 200, r.rows || []);
     }
 
+    if (pathname === '/api/users' && req.method === 'POST') {
+      const { username, password, name, role } = await readJson(req);
+      if (!username || !password || !name || !role) return sendJson(res, 400, { success: false, message: 'All fields are required.' });
+      try {
+        const hash = await bcrypt.hash(password, 10);
+        await query('INSERT INTO users (username, password, role, name) VALUES (?, ?, ?, ?)', [username, hash, role, name]);
+      } catch (e) {
+        if (String(e?.message).toLowerCase().includes('unique')) return sendJson(res, 400, { success: false, message: 'Username already exists.' });
+        throw e;
+      }
+      return sendJson(res, 200, { success: true });
+    }
+
+    if (pathname.startsWith('/api/users/') && pathname.endsWith('/reset-password') && req.method === 'POST') {
+      const id = pathname.split('/')[3]; 
+      const r = await query('SELECT role FROM users WHERE id = ?', [id]);
+      const user = r.rows?.[0];
+      if (!user) return sendJson(res, 404, { success: false, message: 'User not found.' });
+      const defaultPassword = user.role === 'staff' ? 'staff123' : (user.role === 'admin' ? 'admin123' : 'super123');
+      const hash = await bcrypt.hash(defaultPassword, 10);
+      await query('UPDATE users SET password = ? WHERE id = ?', [hash, id]);
+      return sendJson(res, 200, { success: true, message: `Password reset to ${defaultPassword}` });
+    }
+
+    if (pathname.startsWith('/api/users/') && req.method === 'PUT' && pathname !== '/api/users/update') {
+      const id = pathname.split('/').pop();
+      const { username, name, role } = await readJson(req);
+      if (!username || !name || !role) return sendJson(res, 400, { success: false, message: 'Username, name, and role are required.' });
+      try {
+        await query('UPDATE users SET username = ?, name = ?, role = ? WHERE id = ?', [username, name, role, id]);
+      } catch (e) {
+        if (String(e?.message).toLowerCase().includes('unique')) return sendJson(res, 400, { success: false, message: 'Username already exists.' });
+        throw e;
+      }
+      return sendJson(res, 200, { success: true });
+    }
+
+    if (pathname.startsWith('/api/users/') && req.method === 'DELETE') {
+      const id = pathname.split('/').pop();
+      await query('DELETE FROM users WHERE id = ?', [id]);
+      return sendJson(res, 200, { success: true });
+    }
+
     if (pathname === '/api/users/update' && req.method === 'PUT') {
       const { currentUsername, newName, newUsername, newPassword } = await readJson(req);
       if (!currentUsername || !newName || !newUsername) return sendJson(res, 400, { success: false, message: 'Missing required fields.' });

@@ -562,10 +562,48 @@ app.post('/api/users', async (req, res) => {
                 res.json({ success: true, id: this.lastID });
             }
         );
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Server error' });
+});
+
+// Settings Update Endpoint
+app.put('/api/users/update', async (req, res) => {
+    const { currentUsername, newUsername, newPassword, newName } = req.body;
+    
+    if (!currentUsername) {
+        return res.status(400).json({ success: false, message: 'Current username is required.' });
+    }
+
+    try {
+        let query = "UPDATE users SET username = ? ";
+        let params = [newUsername || currentUsername];
+
+        if (newName) {
+            query += ", name = ? ";
+            params.push(newName);
+        }
+
+        if (newPassword) {
+            const hash = await bcrypt.hash(newPassword, 10);
+            query += ", password = ? ";
+            params.push(hash);
+        }
+
+        query += "WHERE username = ?";
+        params.push(currentUsername);
+
+        db.run(query, params, function(err) {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(400).json({ success: false, message: 'Username already taken.' });
+                }
+                return res.status(500).json({ success: false, message: 'Update failed.' });
+            }
+            res.json({ success: true, message: 'Profile updated successfully.' });
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server error.' });
     }
 });
+
 
 app.put('/api/users/:id', (req, res) => {
     const { username, name, role } = req.body;
@@ -613,49 +651,7 @@ app.post('/api/users/:id/reset-password', async (req, res) => {
     });
 });
 
-// Settings Update Endpoint
-app.put('/api/users/update', async (req, res) => {
-    const { currentUsername, newUsername, newPassword, newName } = req.body;
-    
-    if (!currentUsername) {
-        return res.status(400).json({ success: false, message: 'Current username is required.' });
-    }
-
-    try {
-        let query = "UPDATE users SET username = ? ";
-        let params = [newUsername || currentUsername];
-
-        if (newName) {
-            query += ", name = ? ";
-            params.push(newName);
-        }
-
-        if (newPassword) {
-            const hash = await bcrypt.hash(newPassword, 10);
-            query += ", password = ? ";
-            params.push(hash);
-        }
-
-        query += "WHERE username = ?";
-        params.push(currentUsername);
-
-        db.run(query, params, function(err) {
-            if (err) {
-                if (err.message.includes('UNIQUE constraint failed')) {
-                    return res.status(400).json({ success: false, message: 'Username already taken.' });
-                }
-                return res.status(500).json({ success: false, message: 'Update failed.' });
-            }
-            res.json({ success: true, message: 'Profile updated successfully.' });
-        });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error.' });
-    }
 });
-
-
-
-
 // ──────────────────────────────────────────
 // Analytics Endpoint
 // ──────────────────────────────────────────
