@@ -163,7 +163,7 @@ module.exports = async (req, res) => {
         'daily',
         dailyId,
       ]);
-      const orderId = created.lastInsertRowid;
+      const orderId = Number(created.lastInsertRowid);
       for (const it of items) {
         await query('INSERT INTO order_items (order_id, item_id, quantity, price_at_time) VALUES (?, ?, ?, ?)', [
           Number(orderId),
