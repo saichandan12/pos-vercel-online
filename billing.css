@@ -639,13 +639,31 @@ select optgroup{background:var(--bg);color:var(--accent);font-size:11px;font-wei
     overflow-y:auto;
   }
 
-  .item-card{cursor:pointer;}
-  .item-info{padding:10px 10px 6px;}
-  .item-name{font-size:13px;}
-  .item-price{font-size:14px;}
-  .item-add-row{padding:0 8px 8px;}
-  .item-variant-row{padding:0 8px 8px;}
-  .item-add-btn{padding:7px 12px;font-size:12px;}
+  .item-card{
+    cursor:pointer;
+    flex-direction: row;
+    align-items: center;
+    padding: 8px 12px;
+  }
+  .item-info{
+    padding:0;
+    flex:1;
+    gap:4px;
+    justify-content: center;
+  }
+  .item-name{font-size:14px; margin-bottom: 2px;}
+  .item-price-group{margin-top:0;}
+  .item-price{font-size:15px;}
+  .item-add-row, .item-variant-row{
+    padding:0;
+    flex-direction: row;
+    width: auto;
+    margin-left: auto;
+  }
+  .item-variant-select{
+    max-width: 120px;
+  }
+  .item-add-btn{padding:8px 16px;font-size:13px;border-radius:20px;}
 
   /* ── Cart → bottom drawer ── */
   .order-summary{
