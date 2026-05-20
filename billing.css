@@ -632,56 +632,75 @@ select optgroup{background:var(--bg);color:var(--accent);font-size:11px;font-wei
 
   .menu-grid{
     flex:1;
-    padding:10px;
-    grid-template-columns:repeat(2, 1fr);
-    gap:8px;
-    padding-bottom:85px;
-    overflow-y:auto;
+    padding: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding-bottom: 90px;
+    overflow-y: auto;
   }
 
-  .item-card{
-    cursor:pointer;
+  .item-card {
+    padding: 12px;
+    border-radius: 12px;
+    display: flex;
     flex-direction: column;
-    padding: 10px;
+    justify-content: space-between;
+    align-items: center;
     text-align: center;
+    gap: 8px;
+    min-height: 100px;
   }
-  .item-info{
+  .item-info {
+    padding: 0;
+    width: 100%;
+    display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
-    padding: 0;
     gap: 6px;
-    width: 100%;
+    flex: none;
   }
-  .item-name{
-    font-size:13px; 
-    margin: 0;
+  .item-name {
+    font-size: 13px;
+    font-weight: 600;
     line-height: 1.3;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .item-price-group{
-    margin:0 0 8px 0;
+  .item-price-group {
+    margin: 0;
     justify-content: center;
     width: 100%;
   }
-  .item-price{font-size:14px;}
+  .item-price {
+    font-size: 14px;
+    font-weight: 700;
+  }
   
-  .item-add-row, .item-variant-row{
+  .item-add-row, .item-variant-row {
     width: 100%;
     padding: 0;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    margin-top: auto;
   }
-  .item-variant-select{
+  .item-variant-select {
     width: 100%;
-    max-width: none;
+    max-width: 100%;
     margin: 0;
+    padding: 8px 6px;
+    font-size: 12px;
+    border-radius: 8px;
     text-align: center;
   }
-  .item-add-btn{
+  .item-add-btn {
     width: 100%;
-    padding:8px;
-    font-size:13px;
-    border-radius:8px;
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
   }
 
   /* ── Cart → bottom drawer ── */
