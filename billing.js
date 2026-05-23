@@ -257,7 +257,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Hold Order
     document.getElementById('holdBtn').addEventListener('click', () => {
         if (cart.length === 0) return;
-        heldOrders.push({ id: holdCounter++, cart: [...cart], heldAt: new Date() });
+        const holdName = prompt('Enter name for hold order:', '') || 'Guest';
+        heldOrders.push({ id: holdCounter++, name: holdName, cart: [...cart], heldAt: new Date() });
         cart = [];
         renderCart();
         renderHeldOrders();
@@ -699,6 +700,44 @@ function updateTotals() {
     }
 }
 
+function getOrdinal(n) {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+let holdPressTimer;
+
+function startHoldPress(id) {
+    holdPressTimer = setTimeout(() => {
+        showHoldPreview(id);
+    }, 600); // 600ms for long press
+}
+
+function endHoldPress() {
+    clearTimeout(holdPressTimer);
+}
+
+function showHoldPreview(id) {
+    const order = heldOrders.find(o => o.id === id);
+    if (!order) return;
+    
+    document.getElementById('previewModalTitle').textContent = `Preview: ${order.name || 'Guest'}`;
+    const list = document.getElementById('previewModalList');
+    
+    list.innerHTML = order.cart.map(item => `
+        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+            <div style="flex:1;">
+                <div style="font-weight:600;font-size:14px;">${escapeHtml(item.name)}</div>
+                <div style="font-size:12px;color:var(--muted);">${currencyFormatter.format(item.price)} x ${item.quantity}</div>
+            </div>
+            <div style="font-weight:700;">${currencyFormatter.format(item.price * item.quantity)}</div>
+        </div>
+    `).join('');
+    
+    document.getElementById('previewModal').style.display = 'flex';
+}
+
 function renderHeldOrders() {
     const panel = document.getElementById('heldOrdersPanel');
     const list = document.getElementById('heldOrdersList');
@@ -709,20 +748,30 @@ function renderHeldOrders() {
     }
 
     panel.style.display = 'block';
-    list.innerHTML = heldOrders.map(order => {
+    list.innerHTML = heldOrders.map((order, idx) => {
         const itemCount = order.cart.reduce((s, i) => s + i.quantity, 0);
         const total = order.cart.reduce((s, i) => s + i.price * i.quantity, 0);
         const timeStr = order.heldAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        const position = getOrdinal(idx + 1);
+        const orderName = order.name || 'Guest';
+        
         return `
-            <div class="held-order-pill">
-                <div>
-                    <div class="held-order-pill-label">Hold #${order.id}</div>
-                    <div class="held-order-pill-meta">${itemCount} item${itemCount !== 1 ? 's' : ''} · ${currencyFormatter.format(total)} · ${timeStr}</div>
+            <div class="held-order-pill" 
+                 onmousedown="startHoldPress(${order.id})" 
+                 ontouchstart="startHoldPress(${order.id})" 
+                 onmouseup="endHoldPress()" 
+                 ontouchend="endHoldPress()" 
+                 onmouseleave="endHoldPress()"
+                 ontouchmove="endHoldPress()">
+                <div style="flex:1;">
+                    <div class="held-order-pill-label" style="pointer-events:none;">${position} — ${escapeHtml(orderName)}</div>
+                    <div class="held-order-pill-meta" style="pointer-events:none;">${itemCount} item${itemCount !== 1 ? 's' : ''} · ${currencyFormatter.format(total)} · ${timeStr}</div>
                 </div>
-                <button class="held-order-pill-resume" onclick="resumeHeldOrder(${order.id})">Resume</button>
+                <button class="held-order-pill-resume" onclick="resumeHeldOrder(${order.id}); event.stopPropagation();">Resume</button>
             </div>
         `;
     }).join('');
+    lucide.createIcons();
 }
 
 function resumeHeldOrder(id) {
@@ -731,7 +780,8 @@ function resumeHeldOrder(id) {
 
     // If current cart has items, hold it first
     if (cart.length > 0) {
-        heldOrders.push({ id: holdCounter++, cart: [...cart], heldAt: new Date() });
+        const holdName = prompt('Current order not empty. Enter name to hold it:', '') || 'Guest';
+        heldOrders.push({ id: holdCounter++, name: holdName, cart: [...cart], heldAt: new Date() });
     }
 
     cart = heldOrders[idx].cart;
