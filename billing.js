@@ -709,18 +709,42 @@ function getOrdinal(n) {
 let holdPressTimer;
 
 function startHoldPress(id) {
+    if (holdPressTimer) clearTimeout(holdPressTimer);
     holdPressTimer = setTimeout(() => {
         showHoldPreview(id);
-    }, 600); // 600ms for long press
+    }, 500); // 500ms for long press
 }
 
 function endHoldPress() {
-    clearTimeout(holdPressTimer);
+    if (holdPressTimer) clearTimeout(holdPressTimer);
 }
 
 function showHoldPreview(id) {
     const order = heldOrders.find(o => o.id === id);
     if (!order) return;
+    
+    let previewModal = document.getElementById('previewModal');
+    if (!previewModal) {
+        previewModal = document.createElement('div');
+        previewModal.id = 'previewModal';
+        previewModal.className = 'modal';
+        previewModal.innerHTML = `
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2 id="previewModalTitle" style="font-size:18px;margin:0;">Hold Preview</h2>
+              <button class="icon-btn" onclick="document.getElementById('previewModal').style.display='none'" aria-label="Close" style="background:none;border:none;color:var(--muted);"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body" style="padding:15px 0;">
+              <div id="previewModalList" style="max-height:300px;overflow-y:auto;padding:0 15px;"></div>
+            </div>
+            <div class="modal-footer" style="padding:15px;display:flex;justify-content:center;border-top:1px solid var(--border);">
+              <button class="btn btn-secondary" onclick="document.getElementById('previewModal').style.display='none'">Close</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(previewModal);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
     
     document.getElementById('previewModalTitle').textContent = `Preview: ${order.name || 'Guest'}`;
     const list = document.getElementById('previewModalList');
@@ -735,7 +759,7 @@ function showHoldPreview(id) {
         </div>
     `).join('');
     
-    document.getElementById('previewModal').style.display = 'flex';
+    previewModal.style.display = 'flex';
 }
 
 function renderHeldOrders() {
@@ -767,14 +791,15 @@ function renderHeldOrders() {
                     <div class="held-order-pill-label" style="pointer-events:none;">${position} — ${escapeHtml(orderName)}</div>
                     <div class="held-order-pill-meta" style="pointer-events:none;">${itemCount} item${itemCount !== 1 ? 's' : ''} · ${currencyFormatter.format(total)} · ${timeStr}</div>
                 </div>
-                <button class="held-order-pill-resume" onclick="resumeHeldOrder(${order.id}); event.stopPropagation();">Resume</button>
+                <button class="held-order-pill-resume" onclick="resumeHeldOrder(${order.id}, event)">Resume</button>
             </div>
         `;
     }).join('');
     lucide.createIcons();
 }
 
-function resumeHeldOrder(id) {
+function resumeHeldOrder(id, event) {
+    if (event) event.stopPropagation();
     const idx = heldOrders.findIndex(o => o.id === id);
     if (idx === -1) return;
 
