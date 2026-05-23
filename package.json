@@ -13,6 +13,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/ios": "^8.3.4",
     "@libsql/client": "^0.17.3",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2"

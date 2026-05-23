@@ -1,0 +1,10 @@
+{
+  "appId": "com.drippos.app",
+  "appName": "Drip POS",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://pos-vercel-online.vercel.app",
+    "cleartext": true
+  }
+}
