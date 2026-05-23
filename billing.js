@@ -305,10 +305,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function fetchItems() {
     try {
         const response = await fetch('/api/items');
+        if (!response.ok) throw new Error('Network response not ok');
         menuItems = await response.json();
+        localStorage.setItem('posCachedMenu', JSON.stringify(menuItems));
     } catch (error) {
-        console.error('Error fetching items:', error);
-        // Fallback to empty if server is down, or alert user
+        console.error('Error fetching items, using offline cache:', error);
+        const cached = localStorage.getItem('posCachedMenu');
+        if (cached) {
+            menuItems = JSON.parse(cached);
+        } else {
+            console.error('No offline cache available.');
+        }
     }
 }
 
@@ -470,6 +477,7 @@ async function saveOrder() {
     };
 
     try {
+        if (!navigator.onLine) throw new Error('Offline mode');
         const response = await fetch('/api/orders', {
             method: 'POST',
             headers: {
@@ -485,12 +493,99 @@ async function saveOrder() {
             // Sync stats
             fetchNextOrderId();
             fetchTodayStats();
+        } else {
+            throw new Error('Server returned false success');
         }
     } catch (error) {
-        console.error('Error saving order:', error);
-        alert('Failed to save order. Please check if the server is running.');
+        console.error('Network issue, saving order locally:', error);
+        queueOfflineOrder(orderData);
+        showModal('successModal');
+        document.getElementById('successOrderMsg').textContent = `Order saved offline. Will sync when online.`;
     }
 }
+
+// ──────────────────────────────────────────
+// OFFLINE SYNC ENGINE
+// ──────────────────────────────────────────
+let offlineQueue = JSON.parse(localStorage.getItem('posOfflineOrders') || '[]');
+
+function queueOfflineOrder(order) {
+    order.offlineTimestamp = Date.now();
+    offlineQueue.push(order);
+    localStorage.setItem('posOfflineOrders', JSON.stringify(offlineQueue));
+    updateSyncStatus();
+}
+
+async function forceSync() {
+    if (offlineQueue.length === 0) return;
+    if (!navigator.onLine) {
+        alert("You are currently offline. Connect to the internet to sync.");
+        return;
+    }
+    
+    const icon = document.getElementById('syncIcon');
+    const text = document.getElementById('syncText');
+    if(icon) { icon.setAttribute('data-lucide', 'refresh-cw'); icon.classList.add('spin-animation'); }
+    if(text) text.textContent = 'Syncing...';
+    lucide.createIcons();
+
+    let successCount = 0;
+    const remainingQueue = [];
+    
+    for (const order of offlineQueue) {
+        try {
+            const res = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(order)
+            });
+            const data = await res.json();
+            if (data.success) {
+                successCount++;
+            } else {
+                remainingQueue.push(order);
+            }
+        } catch(e) {
+            remainingQueue.push(order);
+        }
+    }
+    
+    offlineQueue = remainingQueue;
+    localStorage.setItem('posOfflineOrders', JSON.stringify(offlineQueue));
+    updateSyncStatus();
+    
+    if (successCount > 0) {
+        fetchNextOrderId();
+        fetchTodayStats();
+    }
+}
+
+function updateSyncStatus() {
+    const icon = document.getElementById('syncIcon');
+    const text = document.getElementById('syncText');
+    const statusWrap = document.getElementById('syncStatus');
+    if (!icon || !text || !statusWrap) return;
+    
+    icon.classList.remove('spin-animation');
+    if (!navigator.onLine) {
+        icon.setAttribute('data-lucide', 'wifi-off');
+        text.textContent = `Offline (${offlineQueue.length})`;
+        statusWrap.style.color = 'var(--red)';
+    } else if (offlineQueue.length > 0) {
+        icon.setAttribute('data-lucide', 'cloud-off');
+        text.textContent = `${offlineQueue.length} Pending`;
+        statusWrap.style.color = 'var(--amber)';
+    } else {
+        icon.setAttribute('data-lucide', 'cloud');
+        text.textContent = 'Online';
+        statusWrap.style.color = 'var(--muted)';
+    }
+    lucide.createIcons();
+}
+
+window.addEventListener('online', () => { updateSyncStatus(); forceSync(); });
+window.addEventListener('offline', () => updateSyncStatus());
+document.addEventListener('DOMContentLoaded', updateSyncStatus);
 
 function renderMenu(searchTerm = '') {
     const grid = document.getElementById('menuGrid');

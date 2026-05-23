@@ -57,8 +57,10 @@ html.high-contrast {
   transition: opacity 0.2s ease-out;
 }
 .modal.show {
-  opacity: 1;
+  display: flex;
 }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.spin-animation { animation: spin 1s linear infinite; }
 
 /* Item card entry – subtle scale‑up */
 .item-card.enter {

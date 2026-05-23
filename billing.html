@@ -80,6 +80,9 @@
         <div id="favoritesBar" class="favorites-bar" style="display:none;"></div>
       </div>
       <div class="user-info">
+        <div id="syncStatus" style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.05);padding:4px 8px;border-radius:6px;cursor:pointer;" onclick="forceSync()">
+          <i data-lucide="cloud" style="width:14px;height:14px;" id="syncIcon"></i> <span id="syncText">Online</span>
+        </div>
         <span class="date-time" id="dateTime">—</span>
         <div class="user-profile">
           <span class="user-name" id="sessionUserName">—</span>
